@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scan NFC APAR - Sistem Inspeksi APAR Pusdiklat</title>
+<style>
+  :root{--accent:#ffb800;--primary:#0a4595}
+  *{box-sizing:border-box}
+  html,body{min-height:100%;margin:0;background:#0b0d10;color:#fff;font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif}
+  body{display:flex;flex-direction:column;align-items:center;padding:calc(18px + env(safe-area-inset-top,0px)) 16px calc(24px + env(safe-area-inset-bottom,0px));gap:16px}
+  .brand{font-size:13px;font-weight:800;letter-spacing:.02em;color:#aab2c0;text-align:center}
+  .instr{font-size:17px;font-weight:700;text-align:center}
+  .sub{font-size:13px;color:#aab2c0;text-align:center;margin-top:4px;max-width:340px}
+  .msg{width:100%;max-width:380px;padding:11px 14px;border-radius:10px;background:rgba(255,255,255,.08);font-size:13.5px;text-align:center;line-height:1.45}
+  .msg.err{background:rgba(220,38,38,.25);border:1px solid rgba(220,38,38,.5);color:#ffd4d4}
+  .msg.ok{background:rgba(22,163,74,.22);border:1px solid rgba(22,163,74,.5);color:#c8f5d8}
+  .lingkaran{width:190px;height:190px;border-radius:50%;border:3px solid rgba(255,184,0,.35);display:grid;place-items:center;position:relative}
+  .lingkaran svg{width:84px;height:84px;color:var(--accent)}
+  .lingkaran.aktif::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:3px solid var(--accent);animation:denyut 1.6s ease-out infinite}
+  @keyframes denyut{from{transform:scale(1);opacity:1}to{transform:scale(1.25);opacity:0}}
+  @media (prefers-reduced-motion:reduce){.lingkaran.aktif::after{animation:none}}
+  button.mulai{font:inherit;font-size:16px;font-weight:800;padding:14px 28px;border-radius:12px;border:0;background:var(--accent);color:#063068;cursor:pointer;min-width:240px}
+  button.mulai[disabled]{opacity:.55}
+  .panduan{width:100%;max-width:380px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:14px 16px;font-size:13.5px;line-height:1.5}
+  .panduan b{color:var(--accent)}
+  .panduan ol{margin:6px 0 0;padding-left:20px}
+  a.back{color:#fff;text-decoration:none;font-size:13px;font-weight:700;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.08);padding:10px 26px;border-radius:10px}
+  .hint{font-size:10.5px;color:#8b93a3;text-align:center;max-width:300px}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+  <div>
+    <div class="brand">🧯 Sistem Inspeksi APAR Pusdiklat</div>
+    <div class="instr">Tempelkan HP ke tag NFC APAR</div>
+    <div class="sub">Tag NFC di titik APAR berisi link yang sama dengan QR code titik itu.</div>
+  </div>
+
+  <div class="lingkaran" id="lingkaran" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 8.5a5 5 0 0 1 0 7"/><path d="M9.5 6a9 9 0 0 1 0 12"/><path d="M13 3.5a13 13 0 0 1 0 17"/></svg>
+  </div>
+
+  <div id="msg" class="msg" hidden></div>
+
+  <!-- Android (Chrome) - Web NFC hanya boleh dimulai dari ketukan tombol pengguna. -->
+  <button type="button" class="mulai" id="btnMulai" hidden>📶 Mulai Scan NFC</button>
+
+  <!-- Browser tanpa Web NFC (semua iPhone, Android non-Chrome): baca tag pakai fitur bawaan HP. -->
+  <div class="panduan" id="panduanIphone" hidden>
+    <b>iPhone</b>: browser di iPhone tidak bisa membaca NFC, tapi iPhone (XS ke atas) membacanya sendiri tanpa aplikasi.
+    <ol>
+      <li>Buka kunci layar HP.</li>
+      <li>Tempelkan <b>bagian atas belakang</b> iPhone ke tag NFC di APAR.</li>
+      <li>Ketuk notifikasi yang muncul, halaman titik APAR langsung terbuka.</li>
+    </ol>
+  </div>
+  <div class="panduan" id="panduanAndroid" hidden>
+    <b>Android</b>: tombol scan hanya jalan di <b>Google Chrome</b>. Tanpa tombol pun bisa:
+    <ol>
+      <li>Nyalakan <b>NFC</b> di Pengaturan HP.</li>
+      <li>Buka kunci layar, tempelkan <b>bagian tengah belakang</b> HP ke tag.</li>
+      <li>Halaman titik APAR terbuka otomatis.</li>
+    </ol>
+  </div>
+
+  <a class="back" id="btnBack" href="#">&larr; Kembali ke Checklist Bulanan</a>
+  <div class="hint">Halaman ini di-hosting terpisah dari Apps Script supaya sensor NFC bisa diakses langsung. Yang dibaca hanya link di tag, tidak ada data yang disimpan.</div>
+
+<script>
+/* Scan NFC (2026-10-13). Sama seperti index.html (Scan QR): halaman ini SENGAJA di luar Apps
+   Script karena iframe Apps Script tidak meneruskan izin sensor. Web NFC (NDEFReader) hanya
+   ada di Chrome Android; iPhone membaca tag NFC lewat fitur bawaan iOS, jadi di sana cukup
+   tampilkan panduan. Aturan validasi link SAMA dengan index.html. */
+const BASE_URL_APP = 'https://script.google.com/macros/s/AKfycbzb9qiIAnYWzOohzH6oAsNeyelGrFgQJBbFVfn_mxoNP8ubBp-8zZDwZq4ja23nu0QI/exec';
+document.getElementById('btnBack').href = BASE_URL_APP + '?page=bulanan';
+
+const msgEl = document.getElementById('msg');
+const btn = document.getElementById('btnMulai');
+const lingkaran = document.getElementById('lingkaran');
+function pesan_(teks, jenis){ msgEl.textContent = teks; msgEl.className = 'msg' + (jenis ? ' ' + jenis : ''); msgEl.hidden = false; }
+
+function linkSah_(teks){
+  try { const u = new URL(teks); return teks.indexOf(BASE_URL_APP) === 0 && u.searchParams.has('titik'); }
+  catch (e) { return false; }
+}
+
+function bacaLinkDariRekaman_(rec){
+  try {
+    if (rec.recordType === 'url' || rec.recordType === 'absolute-url') return new TextDecoder().decode(rec.data);
+    if (rec.recordType === 'text') return new TextDecoder(rec.encoding || 'utf-8').decode(rec.data);
+  } catch (e) {}
+  return '';
+}
+
+const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+if ('NDEFReader' in window) {
+  btn.hidden = false;
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    try {
+      const reader = new NDEFReader();
+      await reader.scan();
+      lingkaran.classList.add('aktif');
+      btn.textContent = 'Menunggu tag NFC...';
+      pesan_('Siap. Tempelkan bagian tengah belakang HP ke tag NFC.', '');
+      reader.addEventListener('readingerror', () => pesan_('Tag tidak terbaca. Tahan HP sedikit lebih lama, lalu coba lagi.', 'err'));
+      reader.addEventListener('reading', ev => {
+        const link = ev.message.records.map(bacaLinkDariRekaman_).find(linkSah_);
+        if (!link) { pesan_('Tag ini bukan tag titik APAR sistem ini. Tempelkan ke tag yang benar.', 'err'); return; }
+        pesan_('Tag terbaca, membuka halaman inspeksi...', 'ok');
+        location.href = link;
+      });
+    } catch (err) {
+      btn.disabled = false;
+      lingkaran.classList.remove('aktif');
+      const ditolak = err && err.name === 'NotAllowedError';
+      pesan_(ditolak ? 'Izin NFC ditolak. Izinkan NFC untuk situs ini di Chrome, lalu tekan tombol lagi.'
+                     : 'NFC tidak bisa dimulai (' + (err && err.message || err) + '). Pastikan NFC di Pengaturan HP sudah menyala.', 'err');
+    }
+  });
+} else if (iOS) {
+  document.getElementById('panduanIphone').hidden = false;
+} else {
+  document.getElementById('panduanAndroid').hidden = false;
+}
+</script>
+</body>
+</html>
