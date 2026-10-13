@@ -64,7 +64,7 @@
     </ol>
   </div>
 
-  <a class="back" id="btnBack" href="#">&larr; Kembali ke Checklist Bulanan</a>
+  <a class="back" id="btnBack" href="#">&larr; Kembali ke Beranda</a>
   <div class="hint">Halaman ini di-hosting terpisah dari Apps Script supaya sensor NFC bisa diakses langsung. Yang dibaca hanya link di tag, tidak ada data yang disimpan.</div>
 
 <script>
@@ -73,7 +73,7 @@
    ada di Chrome Android; iPhone membaca tag NFC lewat fitur bawaan iOS, jadi di sana cukup
    tampilkan panduan. Aturan validasi link SAMA dengan index.html. */
 const BASE_URL_APP = 'https://script.google.com/macros/s/AKfycbzb9qiIAnYWzOohzH6oAsNeyelGrFgQJBbFVfn_mxoNP8ubBp-8zZDwZq4ja23nu0QI/exec';
-document.getElementById('btnBack').href = BASE_URL_APP + '?page=bulanan';
+document.getElementById('btnBack').href = BASE_URL_APP;
 
 const msgEl = document.getElementById('msg');
 const btn = document.getElementById('btnMulai');
